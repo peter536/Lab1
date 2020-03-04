@@ -8,18 +8,18 @@ import random
 
 random.seed(1618)
 np.random.seed(1618)
-tf.set_random_seed(1618)
+tf.random.set_seed(1618)
 
-tf.logging.set_verbosity(tf.logging.ERROR)
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-ALGORITHM = "guesser"
+#ALGORITHM = "guesser"
 #ALGORITHM = "tf_net"
-#ALGORITHM = "tf_conv"
+ALGORITHM = "tf_conv"
 
-DATASET = "mnist_d"
+#DATASET = "mnist_d"
 #DATASET = "mnist_f"
-#DATASET = "cifar_10"
+DATASET = "cifar_10"
 #DATASET = "cifar_100_f"
 #DATASET = "cifar_100_c"
 
@@ -36,11 +36,23 @@ elif DATASET == "mnist_f":
     IZ = 1
     IS = 784
 elif DATASET == "cifar_10":
-    pass                                 # TODO: Add this case.
+    NUM_CLASSES = 10
+    IH = 32
+    IW = 32
+    IZ = 3
+    IS = 3072                                 # TODO: Add this case.
 elif DATASET == "cifar_100_f":
-    pass                                 # TODO: Add this case.
+    NUM_CLASSES = 100
+    IH = 32
+    IW = 32
+    IZ = 3
+    IS = 3072                                 # TODO: Add this case.
 elif DATASET == "cifar_100_c":
-    pass                                 # TODO: Add this case.
+    NUM_CLASSES = 20
+    IH = 32
+    IW = 32
+    IZ = 3
+    IS = 3072                                 # TODO: Add this case.
 
 
 #=========================<Classifier Functions>================================
@@ -55,13 +67,51 @@ def guesserClassifier(xTest):
 
 
 def buildTFNeuralNet(x, y, eps = 6):
-    pass        #TODO: Implement a standard ANN here.
-    return None
+    ann = tf.keras.models.Sequential([tf.keras.layers.Dense(512, activation=tf.nn.sigmoid), tf.keras.layers.Dense(NUM_CLASSES, activation=tf.nn.softmax)])
+    ann.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    ann.fit(x, y, eps)
+    return ann
 
 
-def buildTFConvNet(x, y, eps = 10, dropout = True, dropRate = 0.2):
-    pass        #TODO: Implement a CNN here. dropout option is required.
-    return None
+def buildTFConvNet(x, y, eps = 1, dropout = True, dropRate = 0.2):
+    model = keras.Sequential()
+    inShape = (IH, IW, IZ)
+    lossType = keras.losses.categorical_crossentropy
+    opt = keras.optimizers.Adam(learning_rate=0.001)
+    # A couple 32's
+    model.add(keras.layers.Conv2D(32, kernel_size = (3, 3), activation = 'relu', input_shape = inShape, padding = 'same'))
+    model.add(keras.layers.BatchNormalization())
+    model.add(keras.layers.Conv2D(32, kernel_size = (3, 3), activation = 'relu', padding = 'same'))
+    model.add(keras.layers.BatchNormalization())
+    model.add(keras.layers.MaxPooling2D(pool_size = (2, 2), padding = 'same', data_format = 'channels_last'))
+    
+
+    # A couple 64's
+    model.add(keras.layers.Conv2D(64, kernel_size = (3, 3), activation = 'relu', padding = 'same'))
+    model.add(keras.layers.BatchNormalization())
+    model.add(keras.layers.Conv2D(64, kernel_size = (3, 3), activation = 'relu', padding = 'same'))
+    model.add(keras.layers.BatchNormalization())
+    model.add(keras.layers.Conv2D(64, kernel_size = (3, 3), activation = 'relu', padding = 'same'))
+    model.add(keras.layers.BatchNormalization())
+    model.add(keras.layers.MaxPooling2D(pool_size = (2, 2), padding = 'same', data_format = 'channels_last'))
+    
+    # A couple 128's
+    model.add(keras.layers.Conv2D(128, kernel_size = (3, 3), activation = 'relu', padding = 'same'))
+    model.add(keras.layers.BatchNormalization())
+    model.add(keras.layers.Conv2D(128, kernel_size = (3, 3), activation = 'relu', padding = 'same'))
+    model.add(keras.layers.BatchNormalization())
+    model.add(keras.layers.MaxPooling2D(pool_size = (2, 2), data_format = 'channels_last'))
+
+    # Flatten and a couple denses
+    model.add(keras.layers.Flatten())
+    model.add(keras.layers.Dense(512, activation = 'relu'))
+    model.add(keras.layers.Dropout(dropRate))
+    model.add(keras.layers.Dense(512, activation = 'relu'))
+    model.add(keras.layers.Dropout(dropRate))
+    model.add(keras.layers.Dense(NUM_CLASSES, activation = "softmax"))
+    model.compile(optimizer = opt, loss = lossType, metrics=['accuracy'])
+    model.fit(x, y, epochs=eps, batch_size=128)
+    return model        #TODO: Implement a CNN here. dropout option is required.
 
 #=========================<Pipeline Functions>==================================
 
@@ -73,11 +123,14 @@ def getRawData():
         mnist = tf.keras.datasets.fashion_mnist
         (xTrain, yTrain), (xTest, yTest) = mnist.load_data()
     elif DATASET == "cifar_10":
-        pass      # TODO: Add this case.
+        cifar_10 = tf.keras.datasets.cifar10
+        (xTrain, yTrain), (xTest, yTest) = cifar_10.load_data()      # TODO: Add this case.
     elif DATASET == "cifar_100_f":
-        pass      # TODO: Add this case.
+        cifar_100_f = tf.keras.datasets.cifar100
+        (xTrain, yTrain), (xTest, yTest) = cifar_100_f.load_data(label_mode='fine')      # TODO: Add this case.
     elif DATASET == "cifar_100_c":
-        pass      # TODO: Add this case.
+        cifar_100_c = tf.keras.datasets.cifar100
+        (xTrain, yTrain), (xTest, yTest) = cifar_100_c.load_data(label_mode='coarse')      # TODO: Add this case.
     else:
         raise ValueError("Dataset not recognized.")
     print("Dataset: %s" % DATASET)
@@ -148,7 +201,7 @@ def runModel(data, model):
 
 def evalResults(data, preds):
     xTest, yTest = data
-    acc = 0
+    acc = 0.
     for i in range(preds.shape[0]):
         if np.array_equal(preds[i], yTest[i]):   acc = acc + 1
     accuracy = acc / preds.shape[0]
