@@ -18,8 +18,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 ALGORITHM = "tf_conv"
 
 #DATASET = "mnist_d"
-#DATASET = "mnist_f"
-DATASET = "cifar_10"
+DATASET = "mnist_f"
+#DATASET = "cifar_10"
 #DATASET = "cifar_100_f"
 #DATASET = "cifar_100_c"
 
@@ -73,7 +73,7 @@ def buildTFNeuralNet(x, y, eps = 6):
     return ann
 
 
-def buildTFConvNet(x, y, eps = 1, dropout = True, dropRate = 0.2):
+def buildTFConvNet(x, y, eps = 15, dropout = True, dropRate = 0.2):
     model = keras.Sequential()
     inShape = (IH, IW, IZ)
     lossType = keras.losses.categorical_crossentropy
@@ -84,7 +84,7 @@ def buildTFConvNet(x, y, eps = 1, dropout = True, dropRate = 0.2):
     model.add(keras.layers.Conv2D(32, kernel_size = (3, 3), activation = 'relu', padding = 'same'))
     model.add(keras.layers.BatchNormalization())
     model.add(keras.layers.MaxPooling2D(pool_size = (2, 2), padding = 'same', data_format = 'channels_last'))
-    
+    # model.add(keras.layers.Dropout(dropRate))
 
     # A couple 64's
     model.add(keras.layers.Conv2D(64, kernel_size = (3, 3), activation = 'relu', padding = 'same'))
@@ -94,19 +94,21 @@ def buildTFConvNet(x, y, eps = 1, dropout = True, dropRate = 0.2):
     model.add(keras.layers.Conv2D(64, kernel_size = (3, 3), activation = 'relu', padding = 'same'))
     model.add(keras.layers.BatchNormalization())
     model.add(keras.layers.MaxPooling2D(pool_size = (2, 2), padding = 'same', data_format = 'channels_last'))
-    
+    # model.add(keras.layers.Dropout(dropRate))   
+
     # A couple 128's
     model.add(keras.layers.Conv2D(128, kernel_size = (3, 3), activation = 'relu', padding = 'same'))
     model.add(keras.layers.BatchNormalization())
     model.add(keras.layers.Conv2D(128, kernel_size = (3, 3), activation = 'relu', padding = 'same'))
     model.add(keras.layers.BatchNormalization())
     model.add(keras.layers.MaxPooling2D(pool_size = (2, 2), data_format = 'channels_last'))
+    model.add(keras.layers.Dropout(dropRate))
 
     # Flatten and a couple denses
     model.add(keras.layers.Flatten())
     model.add(keras.layers.Dense(512, activation = 'relu'))
     model.add(keras.layers.Dropout(dropRate))
-    model.add(keras.layers.Dense(512, activation = 'relu'))
+    model.add(keras.layers.Dense(1024, activation = 'relu'))
     model.add(keras.layers.Dropout(dropRate))
     model.add(keras.layers.Dense(NUM_CLASSES, activation = "softmax"))
     model.compile(optimizer = opt, loss = lossType, metrics=['accuracy'])
@@ -188,6 +190,8 @@ def runModel(data, model):
         return preds
     elif ALGORITHM == "tf_conv":
         print("Testing TF_CNN.")
+        
+        data = data.astype('float16')
         preds = model.predict(data)
         for i in range(preds.shape[0]):
             oneHot = [0] * NUM_CLASSES
@@ -208,6 +212,14 @@ def evalResults(data, preds):
     print("Classifier algorithm: %s" % ALGORITHM)
     print("Classifier accuracy: %f%%" % (accuracy * 100))
     print()
+
+    import matplotlib.pyplot as plt
+    fig = plt.figure()
+    ax = fig.add_axes([0,0,1,1])
+    langs = ['mnist_d', 'mnist_f', 'cifar-10', 'cifar-100-c', 'cifar-100-f']
+    students = [23,17,35,29,12]
+    ax.bar(langs,students)
+    plt.show()
 
 
 
